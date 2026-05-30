@@ -3,11 +3,16 @@ import nltk
 import spacy
 import random
 import re
+import tempfile
+import pygame
+
+from gtts import gTTS
+
+from transformers import pipeline
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-from gtts import gTTS
-import pygame
-import tempfile
+
 
 
 nltk.download('punkt')
@@ -16,12 +21,22 @@ nltk.download('punkt_tab')
 nlp = spacy.load("pt_core_news_sm")
 
 pygame.mixer.init()
+
 voice_enabled = True
 
-#conhecimento
+#huggin face (sentimento)
+
+sentiment_model = pipeline(
+    "sentiment-analysis",
+    model="cardiffnlp/twitter-xlm-roberta-base-sentiment"
+)
+
+#base de conhecimento
 
 with open("conhecimento.txt", "r", encoding="utf-8") as file:
     text = file.read()
+
+#tratamento sentenças
 
 sentences = nltk.sent_tokenize(text)
 
@@ -41,7 +56,7 @@ for s in sentences:
 
 sentences = filtered
 
-#pré-processamento
+#pré-processamento nlp
 
 def preprocessing(sentence):
 
@@ -62,39 +77,23 @@ def preprocessing(sentence):
 
     return " ".join(tokens)
 
-#sentimento
+#analise sentimento
 
 def sentiment(text):
 
-    text = text.lower()
+    result = sentiment_model(text)
 
-    positive_words = [
+    label = result[0]["label"]
 
-    "feliz", "animado", "alegre", "ótimo",
-    "excelente", "bom", "maravilhoso",
-    "contente", "empolgado", "motivado"
+    if label == "positive":
+        return "positivo"
 
-    ]
-
-    negative_words = [
-
-    "triste", "chateado", "mal",
-    "ruim", "péssimo", "deprimido",
-    "cansado", "desanimado", "estressado"
-
-    ]
-
-    for word in positive_words:
-
-        if word in text:
-            return "positivo"
-
-    for word in negative_words:
-
-        if word in text:
-            return "negativo"
+    elif label == "negative":
+        return "negativo"
 
     return "neutro"
+
+#controle de voz
 
 def toggle_voice():
 
@@ -114,7 +113,7 @@ def toggle_voice():
             text="🔇 Voz OFF"
         )
 
-#voz
+#conversor texto em áudio
 
 def speak(text):
 
@@ -192,6 +191,8 @@ def answer(user_text):
 
             return direct_matches[key]
 
+    #palavras-chave
+
     if "vermelho" in user_lower:
 
         return "Marte é conhecido como planeta vermelho devido à presença de óxido de ferro."
@@ -221,6 +222,8 @@ def answer(user_text):
 
     ]
 
+    #tf-idf + similaridade cosseno
+
     tfidf = TfidfVectorizer()
 
     vectors = tfidf.fit_transform(cleaned)
@@ -246,6 +249,7 @@ def answer(user_text):
 
     return sentences[best_index]
 
+#respostas aletaorias
 
 random_answers = [
 
@@ -264,6 +268,8 @@ outputs = [
     "Pergunte algo sobre planetas, Sol ou galáxias."
 
 ]
+
+#saudações
 
 def greeting(text):
 
